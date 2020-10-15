@@ -1,6 +1,4 @@
-list = []
+def test(number, m):
+    print(number, m)
 
-list += 'abc'
-list += 'def'
-
-print(list)
+test(m=1, number=2)
