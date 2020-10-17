@@ -1,6 +1,8 @@
 import requests
 import os
 import re
+import time
+
 
 #  URLの日付の部分まで作る
 #  openingMonth/Dayは開幕日
@@ -13,83 +15,95 @@ def makeDateUrlList(year, openingMonth, openingDay, endingMonth, endingDay):
     dateUrlList = []
     lastDaysList[endingMonth - 1] = endingDay
 
-    for month in range(openingMonth, endingMonth):
+    for month in range(openingMonth, endingMonth + 1):
         #  基本は1だけど開始月だけは開始日
         startDay = 1
         if month == openingMonth:
             startDay = openingDay
         #  URL作ってるのはここ
-        for day in range(startDay, lastDaysList[month - 1]):
-            dayNoStr = str(year) + str(month).zfill(2) + str(day).zfill(2)
-            dateUrl = rootUrl + dayNoStr
-            dateUrlList.append(dateUrl)
+        for day in range(startDay, lastDaysList[month - 1] + 1):
+            dateNoStr = str(year) + str(month).zfill(2) + str(day).zfill(2)
+            dateUrl = rootUrl + dateNoStr
+            #  既にHTMLが存在してる日はリストに追加しない
+            if not os.path.exists(os.getcwd() + f'\\HTML\\{dateNoStr}'):
+                dateUrlList.append(dateUrl)
 
     return dateUrlList
 
 
-def crawling():
+#  動きが保証できない
+#  あとクローリングの間の時間入れてないから動かすとまずい
+def crawling(dateUrlList):
     gameFlag = False
     inningFlag = False
     batterFlag = False
-
-    dateUrlList = makeDateUrlList(year=2020, openingMonth=6, openingDay=19, endingMonth=10, endingDay=28)
 
     #  多重ループの最下層以外のif文はある程度無視でおｋ
     #  dateURLをリストから引きだすループ
     for dateUrl in dateUrlList:
         #  その日のゲームナンバーのループ
-        for gameNo in range(1, 6):
-            if gameFlag == True:
+        for gameNo in range(1, 7):
+            if gameFlag:
                 gameFlag = False
                 break
             #  イニングのループ
-            for inning in range(1, 12):
-                if inningFlag == True:
+            for inning in range(1, 13):
+                if inningFlag:
                     inningFlag = False
                     break
                 #  表裏のループ
-                for topBottom in range(1, 2):
+                for topBottom in range(1, 3):
+                    #  バッターのループ
                     for batterNo in range(1, 15):
-                        if batterFlag == True:
+                        if batterFlag:
                             batterFlag = False
                             break
                         #  そのイニングのアクションのループ
                         for action in range(0, 10):
-                            result = fetchHtml(dateUrl, gameNo, inning, topBottom, batterNo, action)
+                            #  ディレイ入れてfetchHTMLを使ってリクエストを送る
+                            time.sleep(0.1)
+                            result, gameFlag, inningFlag, batterFlag = fetchHtml(dateUrl, gameNo, inning, topBottom,
+                                                                                 batterNo, action)
                             if result.status_code == 404:
-                                if action == 0:
-                                    if batterNo == 0:
-                                        if inning == 0:
-                                            gameFlag = True
-                                        inningFlag = True
-                                    batterFlag = True
                                 break
 
 
-
 def fetchHtml(dateUrl, gameNo, inning, topBottom, batterNo, action):
+    gameFlag = False
+    inningFlag = False
+    batterFlag = False
+
+    #  URL作ってリクエスト送ってる
     indexNoStr = str(inning).zfill(2) + str(topBottom) + str(batterNo).zfill(2) + str(action).zfill(2)
     url = dateUrl + str(gameNo).zfill(2) + '/score?index=' + indexNoStr
     result = requests.get(url)
 
-    print(url)
-
+    #  日付+ゲームナンバーが名前のディレクトリを作ってる
     gameUrlStr = dateUrl + str(gameNo).zfill(2)
     gameSearch = re.search('\d{10}', gameUrlStr)
     gameNoStr = gameSearch.group()
+    gameDir = os.getcwd() + f'\\HTML\\{gameNoStr}'
 
-    print(gameNoStr)
-
-    gameDir = os.getcwd()+f'\\HTML\\{gameNoStr}'
-    if result.status_code != 404:
-        if not os.path.exists(gameDir):
-            os.mkdir(gameDir)
-
-        with open(gameDir+f'\\{indexNoStr}.html', 'w', encoding='utf-8') as f:
+    #  ステータスコードが200の場合
+    if result.status_code == 200:
+        os.mkdir(gameDir)
+        #  HTMLファイルの保存
+        with open(gameDir + f'\\{indexNoStr}.html', 'w', encoding='utf-8') as f:
             f.write(result.text)
             print('Done')
 
-    else:
-        print('miss!')
+    #  ステータスコードが404の場合
+    elif result.status_code == 404:
+        if action == 0:
+            if batterNo == 1:
+                if inning == 1:
+                    gameFlag = True
+                inningFlag = True
+            batterFlag = True
 
-    return result
+    #  ステータスコードが200でも404でもない場合
+    else:
+        print('StatusCodeError')
+
+    return result, gameFlag, inningFlag, batterFlag
+
