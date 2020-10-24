@@ -7,12 +7,12 @@ import time
 #  URLの日付の部分まで作る
 #  openingMonth/Dayは開幕日
 #  endingMonth/Dayは終了日
-def makeDateUrlList(year, openingMonth, openingDay, endingMonth, endingDay):
+def make_game_url_list(year, openingMonth, openingDay, endingMonth, endingDay):
     #  1~12月の最後の日(閏年は非考慮)
     lastDaysList = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
     rootUrl = 'https://baseball.yahoo.co.jp/npb/game/'
-    dateUrlList = []
+    game_url_list = []
     lastDaysList[endingMonth - 1] = endingDay
 
     for month in range(openingMonth, endingMonth + 1):
@@ -23,16 +23,64 @@ def makeDateUrlList(year, openingMonth, openingDay, endingMonth, endingDay):
         #  URL作ってるのはここ
         for day in range(startDay, lastDaysList[month - 1] + 1):
             dateNoStr = str(year) + str(month).zfill(2) + str(day).zfill(2)
-            dateUrl = rootUrl + dateNoStr
-            #  既にHTMLが存在してる日はリストに追加しない
-            if not os.path.exists(os.getcwd() + f'\\HTML\\{dateNoStr}'):
-                dateUrlList.append(dateUrl)
+            for gameNo in range(1, 7):
+                dateUrl = rootUrl + dateNoStr + str(gameNo).zfill(2) + '/score?index='
+                #  既にHTMLが存在してるゲームのURLはリストに追加しない
+                if not os.path.exists(os.getcwd() + f'\\HTML\\{dateNoStr}'):
+                    game_url_list.append(dateUrl)
 
-    return dateUrlList
+    return game_url_list
+
+
+def fetch_day(game_url_list):
+    #  その試合のhtmlを取ってくるかの諸々のチェックするための関数がほしい
+    for game_no in range(1, 7):
+
+
+
+def fetch_game_html(url):
+    result = requests.get(url)
+
+    #  404ならエラーを返す
+    if result.status_code == 404:
+        return Exception('Error:status_code404')
+
+    #  日付+ゲーム番号(例:2020061901)のディレクトリを作る
+    game_no_str = re.search('\d{10}', url).group()
+    gameDir = os.getcwd() + f'\\HTML\\{game_no_str}'
+    #  ここ要検討
+    os.mkdir(gameDir)
+    #  HTMLファイルの保存
+    with open(gameDir + f'\\{game_no_str}.html', 'w', encoding='utf-8') as f:
+        f.write(result.text)
+        print('Done')
+
+    next_url = get_next_url(result.text)
+
+    if next_url is None:
+        return
+
+    fetch_game_html(next_url)
+
+
+
+
+def judge_farm(html):
+    return True
+
+
+def get_next_url(html):
+    return True
+
+
+def check_url(url):
+
+
 
 
 #  動きが保証できない
-#  あとクローリングの間の時間入れてないから動かすとまずい
+#  以下はゴミ
+'''
 def crawling(dateUrlList):
     gameFlag = False
     inningFlag = False
@@ -106,4 +154,4 @@ def fetchHtml(dateUrl, gameNo, inning, topBottom, batterNo, action):
         print('StatusCodeError')
 
     return result, gameFlag, inningFlag, batterFlag
-
+'''
