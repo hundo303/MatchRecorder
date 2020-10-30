@@ -42,9 +42,10 @@ def fetch_day(date_url_list):
             if url_status[0]:
                 break
             elif url_status[1]:
-                 continue
+                continue
             else:
                 fetch_game_html(start_url)
+
 
 #  再帰的に試合のHTMLを取得する
 def fetch_game_html(url):
@@ -58,7 +59,7 @@ def fetch_game_html(url):
     game_no_str = re.search('\d{10}', url).group()
     gameDir = os.getcwd() + f'\\HTML\\{game_no_str}'
     #  そのディレクトリ無かったら作る
-    if os.path.exists(gameDir):
+    if not os.path.exists(gameDir):
         os.mkdir(gameDir)
 
     #  HTMLファイルの保存
@@ -75,6 +76,7 @@ def fetch_game_html(url):
 
 
 #  html投げると次のURL返ってくる
+#  試合終了だとNoneを返す
 def get_next_url(html):
     soup = BeautifulSoup(html, 'html.parser')
     p = soup.find('a', id='btn_next')
@@ -120,12 +122,19 @@ def check_url(url):
 
 #  試合が2軍戦だとTrueを返す
 def judge_farm(html):
-    return True
+    soup = BeautifulSoup(html, 'html.parser')
+    tag = soup.find('th', class_ = 'bb-splitsTable__head bb-splitsTable__head--bench')
+    if tag is None:
+        return True
+    else:
+        return False
 
 
 #  そのゲームのdirが存在したらTrueを返す
-def check_dir_exists():
-    return True
+def check_dir_exists(url):
+    game_no_str = re.search('\d{10}', url).group()
+    gameDir = os.getcwd() + f'\\HTML\\{game_no_str}'
+    return os.path.exists(gameDir)
 
 
 #  動きが保証できない

@@ -22,28 +22,14 @@ def check_finish(html):
     else:
         return False
 
+def judge_farm(html):
+    soup = BeautifulSoup(html, 'html.parser')
+    tag = soup.find('th', class_ = 'bb-splitsTable__head bb-splitsTable__head--bench')
+    if tag is None:
+        return True
+    else:
+        return False
 
-def make_date_url_list(year, openingMonth, openingDay, endingMonth, endingDay):
-    #  1~12月の最後の日(閏年は非考慮)
-    lastDaysList = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+result = requests.get('https://baseball.yahoo.co.jp/npb/game/2020102907/score?index=0110100')
 
-    rootUrl = 'https://baseball.yahoo.co.jp/npb/game/'
-    date_url_list = []
-    lastDaysList[endingMonth - 1] = endingDay
-
-    for month in range(openingMonth, endingMonth + 1):
-        #  基本は1だけど開始月だけは開始日
-        startDay = 1
-        if month == openingMonth:
-            startDay = openingDay
-        #  URL作ってるのはここ
-        for day in range(startDay, lastDaysList[month - 1] + 1):
-            dateNoStr = str(year) + str(month).zfill(2) + str(day).zfill(2)
-            date_url = rootUrl + dateNoStr
-            date_url_list.append(date_url)
-
-    return date_url_list
-
-
-date_url_list = make_date_url_list(2020, 9, 28, 10, 29)
-print(date_url_list)
+print(judge_farm(result.text))
