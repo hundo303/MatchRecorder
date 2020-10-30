@@ -1,18 +1,19 @@
 import requests
 import os
 import re
+from bs4 import BeautifulSoup
 import time
 
 
 #  URLの日付の部分まで作る
 #  openingMonth/Dayは開幕日
 #  endingMonth/Dayは終了日
-def make_game_url_list(year, openingMonth, openingDay, endingMonth, endingDay):
+def make_date_url_list(year, openingMonth, openingDay, endingMonth, endingDay):
     #  1~12月の最後の日(閏年は非考慮)
     lastDaysList = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
     rootUrl = 'https://baseball.yahoo.co.jp/npb/game/'
-    game_url_list = []
+    date_url_list = []
     lastDaysList[endingMonth - 1] = endingDay
 
     for month in range(openingMonth, endingMonth + 1):
@@ -20,24 +21,32 @@ def make_game_url_list(year, openingMonth, openingDay, endingMonth, endingDay):
         startDay = 1
         if month == openingMonth:
             startDay = openingDay
+
         #  URL作ってるのはここ
         for day in range(startDay, lastDaysList[month - 1] + 1):
             dateNoStr = str(year) + str(month).zfill(2) + str(day).zfill(2)
-            for gameNo in range(1, 7):
-                dateUrl = rootUrl + dateNoStr + str(gameNo).zfill(2) + '/score?index='
-                #  既にHTMLが存在してるゲームのURLはリストに追加しない
-                if not os.path.exists(os.getcwd() + f'\\HTML\\{dateNoStr}'):
-                    game_url_list.append(dateUrl)
+            date_url = rootUrl + dateNoStr
+            date_url_list.append(date_url)
 
-    return game_url_list
+    return date_url_list
 
 
-def fetch_day(game_url_list):
+#  その日の試合をとる
+def fetch_day(date_url_list):
     #  その試合のhtmlを取ってくるかの諸々のチェックするための関数がほしい
-    for game_no in range(1, 7):
+    for date_url in date_url_list:
+        for game_no in range(0, 7):
+            start_url = date_url + str(game_no).zfill(2) + '/score?index=0110100'
 
+            url_status = check_url(start_url)
+            if url_status[0]:
+                break
+            elif url_status[1]:
+                 continue
+            else:
+                fetch_game_html(start_url)
 
-
+#  再帰的に試合のHTMLを取得する
 def fetch_game_html(url):
     result = requests.get(url)
 
@@ -45,11 +54,13 @@ def fetch_game_html(url):
     if result.status_code == 404:
         return Exception('Error:status_code404')
 
-    #  日付+ゲーム番号(例:2020061901)のディレクトリを作る
+    #  日付+ゲーム番号(例:2020061901)のディレクトリ名
     game_no_str = re.search('\d{10}', url).group()
     gameDir = os.getcwd() + f'\\HTML\\{game_no_str}'
-    #  ここ要検討
-    os.mkdir(gameDir)
+    #  そのディレクトリ無かったら作る
+    if os.path.exists(gameDir):
+        os.mkdir(gameDir)
+
     #  HTMLファイルの保存
     with open(gameDir + f'\\{game_no_str}.html', 'w', encoding='utf-8') as f:
         f.write(result.text)
@@ -63,19 +74,58 @@ def fetch_game_html(url):
     fetch_game_html(next_url)
 
 
+#  html投げると次のURL返ってくる
+def get_next_url(html):
+    soup = BeautifulSoup(html, 'html.parser')
+    p = soup.find('a', id='btn_next')
+    url_dir = p.get('href')
+
+    if check_finish(html):
+        return None
+
+    url = 'https://baseball.yahoo.co.jp' + url_dir
+
+    return url
 
 
+#  投げたHTMLが試合終了のページだとTrueを還す
+def check_finish(html):
+    soup = BeautifulSoup(html, 'html.parser')
+    div_tag = soup.find('div', id='detail_footer_leftbox')
+    status_text = div_tag.p.get_text()
+
+    if status_text == '試合終了':
+        return True
+    else:
+        return False
+
+
+#  404 or ファームの試合なら(True, False)
+#  そのゲームのdirが存在するなら(False, True)
+#  その他は(False, False)を返す
+def check_url(url):
+    result = requests.get(url)
+    if result.status_code == 404:
+        return True, False
+
+    elif judge_farm(result.text):
+        return True, False
+
+    elif check_dir_exists(url):
+        return False, True
+
+    else:
+        return False, False
+
+
+#  試合が2軍戦だとTrueを返す
 def judge_farm(html):
     return True
 
 
-def get_next_url(html):
+#  そのゲームのdirが存在したらTrueを返す
+def check_dir_exists():
     return True
-
-
-def check_url(url):
-
-
 
 
 #  動きが保証できない
