@@ -149,7 +149,7 @@ def judge_no_game(html):
     div_tag = soup.find('div', id='detail_footer_leftbox')
     status_text = div_tag.p.get_text()
 
-    if status_text == 'ノーゲーム':
+    if status_text == 'ノーゲーム' or status_text == '試合中止':
         return True
     else:
         return False
