@@ -51,9 +51,10 @@ def fetch_day(date_url_list):
     #  その試合のhtmlを取ってくるかの諸々のチェックするための関数がほしい
     for date_url in date_url_list:
         for game_no in range(1, 7):
-            start_url = date_url + str(game_no).zfill(2) + '/score?index=0110100'
+            score_url = date_url + str(game_no).zfill(2) + '/score'
+            start_url = score_url + '?index=0110100'
 
-            url_status = check_url(start_url)
+            url_status = check_url(score_url)
             if url_status[0]:
                 break
             elif url_status[1]:
@@ -120,22 +121,38 @@ def check_finish(html):
 
 
 #  404 or ファームの試合なら(True, False)
-#  そのゲームのdirが存在するなら(False, True)
+#  そのゲームのdirが存在する or ノーゲームなら(False, True)
 #  その他は(False, False)を返す
 def check_url(url):
+    if check_dir_exists(url):
+        return False, True
+
     time.sleep(0.5)
     result = requests.get(url)
+
     if result.status_code == 404:
         return True, False
+
+    elif judge_no_game(result.text):
+        return False, True
 
     elif judge_farm(result.text):
         return True, False
 
-    elif check_dir_exists(url):
-        return False, True
-
     else:
         return False, False
+
+
+#  試合がノーゲームだとTrueを返す
+def judge_no_game(html):
+    soup = BeautifulSoup(html, 'html.parser')
+    div_tag = soup.find('div', id='detail_footer_leftbox')
+    status_text = div_tag.p.get_text()
+
+    if status_text == 'ノーゲーム':
+        return True
+    else:
+        return False
 
 
 #  試合が2軍戦だとTrueを返す
