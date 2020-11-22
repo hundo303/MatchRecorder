@@ -45,24 +45,30 @@ def take_date(soup):
     return [date, day_week]
 
 
-def take_match_player_data(soup):
-    div_pitcher = soup.select_one('#pitcherL > div.card')
+def take_match_player_data(soup, file):
+    top_or_bottom = judge_top_or_bottom(file)
+
+    if top_or_bottom == 1:
+        div_pitcher = soup.select_one('#pitcherL > div.card')
+    elif top_or_bottom == 2:
+        div_pitcher = soup.select_one('#pitcherR > div.card')
+
     div_batter = soup.select_one('#batter')
 
-    pitcher_data = get_player_data(div_pitcher)
-    batter_data = get_player_data(div_batter)
+    pitcher_data = take_player_data(div_pitcher)
+    batter_data = take_player_data(div_batter)
 
     return pitcher_data, batter_data
 
 
-def get_player_data(div):
+def take_player_data(div):
     team_number_str = div.get('class')[1]
 
     tr_nm_box = div.select_one('table > tbody > tr > '
                                'td:nth-child(2) > table > '
                                'tbody > tr.nm_box')
 
-    name = tr_nm_box.select_one('td.nm > a').get_text()
+    name = tr_nm_box.select_one('td.nm > a').get_text().replace(' ', '')
 
     uniform_number_str = tr_nm_box.select_one('td.nm > span').get_text()
     uniform_number = int(uniform_number_str.replace('#', ''))
@@ -78,7 +84,32 @@ def judge_team(team_str):
         return '巨人'
 
 
+def take_catcher_data(soup, pitcher_name, file):
+    top_or_bottom = judge_top_or_bottom(file)
+    if top_or_bottom == 1:
+        td_battery = soup.select_one('#gm_memh > table:nth-child(4) > '
+                                     'tbody:nth-child(1) > '
+                                     'tr.bb-splitsTable__row > td')
+    elif top_or_bottom == 2:
+        td_battery = soup.select_one('#gm_mema > table:nth-child(4) > '
+                                     'tbody:nth-child(1) > '
+                                     'tr.bb-splitsTable__row > td')
+
+    battery_pitcher_name = td_battery.select('a')[0].get_text()
+    battery_catcher_name = td_battery.select('a')[1].get_text()
+    if battery_pitcher_name in pitcher_name:
+        print(battery_catcher_name)
+        return battery_catcher_name
+
+
+def judge_top_or_bottom(file):
+    file_name = file.name
+    return int(file_name[-10])
+
+
 if __name__ == '__main__':
     with open(r'D:/prog/MatchRecorder/HTML/2020061901/0110100.html', encoding='utf-8') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        print(take_match_player_data(soup))
+        pitcher_name = take_match_player_data(soup, f)[0][0]
+        take_catcher_data(soup, pitcher_name, f)
+
