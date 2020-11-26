@@ -176,15 +176,38 @@ def take_match_batter_number(soup):
     return match_batter_number
 
 
+def take_coordinate_list(soup):
+    coordinate_list = []
+    span_list = soup.select('#pitchesDetail > section:nth-child(2) > '
+                            'table:nth-child(1) > tbody > tr > td > '
+                            'div > span')
+
+    for style_tag in span_list:
+        style_text = style_tag.get('style')
+        top_text = re.search(r'top:\d+', style_text).group()
+        top = int(top_text.replace('top:', ''))
+        left_text = re.search(r'left:\d+', style_text).group()
+        left = int(left_text.replace('left:', ''))
+
+        coordinate_list.append((top, left))
+
+    return coordinate_list
+
+
 if __name__ == '__main__':
-    with open(r'D:/prog/MatchRecorder/HTML/2020061901/0310400.html', encoding='utf-8') as f:
+    with open(r'D:/prog/MatchRecorder/HTML/2020061901/0110100.html', encoding='utf-8') as f:
         soup_main = BeautifulSoup(f, 'html.parser')
 
         top_or_bottom = int(f.name[-10])
 
+        pitch_list = take_pitch_list(soup_main)
+
+        for i, coordinate in enumerate(take_coordinate_list(soup_main)):
+            pitch_list[i] += coordinate
+
         print('日付:', take_date(soup_main))
         print('対戦情報:', take_match_player_data(soup_main))
-        print('ピッチリスト:', take_pitch_list(soup_main))
+        print('ピッチリスト:', pitch_list)
         print('キャッチャー:', take_catcher_name(soup_main))
         print('アウト:', judge_out(soup_main))
         print('第何打席:', take_plate_appearances(soup_main))
