@@ -1,19 +1,7 @@
-import glob
-import os
 from bs4 import BeautifulSoup
 import re
 
 top_or_bottom = 1
-
-
-#  次のページがあるかを確認する
-def exists_next_page(html_dir):
-    index_number = int(html_dir[-12:-5])
-    index_number += 1
-
-    html_dir = html_dir[:-12] + str(index_number) + html_dir[-5:]
-
-    return os.path.exists(html_dir)
 
 
 #  1球ごとの投球内容のリストを内包した、1打席の投球内容のリストを返す
@@ -36,6 +24,10 @@ def take_pitch_list(soup):
         type_of_pitch = td_list[2].get_text()
 
         pitch_speed = td_list[3].get_text()
+        if pitch_speed == '-':
+            pitch_speed = None
+        else:
+            pitch_speed = int(pitch_speed.replace('km/h', ''))
 
         pitch_result_text = re.sub(r'\s', '', td_list[4].get_text())
 
@@ -53,11 +45,11 @@ def take_pitch_list(soup):
 
 
 #  上関数で使用
-def take_count(result, strike_count, ball_count):
-    if result == 1:
+def take_count(pitch_result, strike_count, ball_count):
+    if pitch_result == 1:
         return strike_count + 1, ball_count
 
-    elif result == 2:
+    elif pitch_result == 2:
         return strike_count, ball_count + 1
 
     else:
@@ -89,12 +81,10 @@ def take_date(soup):
 #  対戦した2選手の情報を取ってくる
 def take_match_player_data(soup):
     global top_or_bottom
-    div_pitcher = None
 
-    if top_or_bottom == 1:
-        div_pitcher = soup.select_one('#pitcherL > div.card')
-    elif top_or_bottom == 2:
-        div_pitcher = soup.select_one('#pitcherR > div.card')
+    pitcher_side = 'L' if top_or_bottom == 1 else 'R'
+
+    div_pitcher = soup.select_one(f'#pitcher{pitcher_side} > div.card')
 
     div_batter = soup.select_one('#batter')
 
@@ -167,7 +157,13 @@ def take_plate_appearances(soup):
 
 #  その投手が対戦した打者の数を取得する
 def take_match_batter_number(soup):
-    td = soup.select_one('#pitcherL > div.card.team1 > '
+    global top_or_bottom
+
+    pitcher_side = 'L' if top_or_bottom == 1 else 'R'
+    div_pitcher = soup.select_one(f'#pitcher{pitcher_side} > div.card')
+    team_number_str = div_pitcher.get('class')[1]
+
+    td = soup.select_one(f'#pitcher{pitcher_side} > div.card.{team_number_str} > '
                          'table > tbody > tr > td:nth-child(2) > '
                          'table > tbody > tr.score > td:nth-child(2)')
 
@@ -194,8 +190,52 @@ def take_coordinate_list(soup):
     return coordinate_list
 
 
+def take_defense(soup):
+    defense_dic = {}
+    global top_or_bottom
+
+    pitcher_side = 'L' if top_or_bottom == 1 else 'R'
+    defence_side = 'h' if top_or_bottom == 1 else 'a'
+
+    div_pitcher = soup.select_one(f'#pitcher{pitcher_side} > div.card')
+    team_number_str = div_pitcher.get('class')[1]
+
+    tr_list = soup.select(f'#gm_mem{defence_side} > table.bb-splitsTable.bb-splitsTable'
+                          f'--{team_number_str} > tbody > tr')
+
+    for tr in tr_list:
+        td_list = tr.select('td')
+        if len(td_list) == 0:
+            continue
+
+        position = td_list[1].get_text()
+        player = td_list[2].a.get_text().replace(' ', '')
+        defense_dic[position] = player
+
+    return defense_dic
+
+
+def take_result_at_bat(soup):
+    result_at_bat = soup.select_one('#result')
+    result_span = result_at_bat.span.get_text()
+    result_em = result_at_bat.em.get_text()
+    return result_span, result_em
+
+
+def take_runner(soup):
+    runner_list = {1: None, 2: None, 3: None, 4: None}
+    div_list = soup.select('#dakyu > div')
+    for div in div_list:
+        base_number = int(div.get('id')[-1])
+        runner = div.span.get_text()
+        runner_name = runner.split(' ')[1]
+        runner_list[base_number] = runner_name
+
+    return runner_list
+
+
 if __name__ == '__main__':
-    with open(r'D:/prog/MatchRecorder/HTML/2020061901/0110100.html', encoding='utf-8') as f:
+    with open(r'D:/prog/MatchRecorder/HTML/2020061901/0410500.html', encoding='utf-8') as f:
         soup_main = BeautifulSoup(f, 'html.parser')
 
         top_or_bottom = int(f.name[-10])
@@ -212,3 +252,6 @@ if __name__ == '__main__':
         print('アウト:', judge_out(soup_main))
         print('第何打席:', take_plate_appearances(soup_main))
         print('打者数:', take_match_batter_number(soup_main))
+        print('守備:', take_defense(soup_main))
+        print('リザルト:', take_result_at_bat(soup_main))
+        print('ランナー:', take_runner(soup_main))
