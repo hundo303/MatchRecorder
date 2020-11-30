@@ -9,7 +9,7 @@ import time
 #  ゲームごとにdirを作ってその中にゲームのHTMLを保存する
 #  dirが既に存在すると取ってこない
 #  (year=2020, opening_date='01-01', ending_date='12-31')みたいに渡してほしい
-def crawling(year, opening_date, ending_date):
+def crawling_season(year, opening_date, ending_date):
     opening_month = int(opening_date.split('-')[0])
     opening_day = int(opening_date.split('-')[1])
     ending_month = int(ending_date.split('-')[0])
@@ -48,7 +48,6 @@ def make_date_url_list(year, opening_month, opening_day, ending_month, ending_da
 
 #  listにある日の試合をとる
 def fetch_day(date_url_list):
-    #  その試合のhtmlを取ってくるかの諸々のチェックするための関数がほしい
     for date_url in date_url_list:
         for game_no in range(1, 7):
             score_url = date_url + str(game_no).zfill(2) + '/score'
@@ -158,7 +157,7 @@ def judge_no_game(html):
 #  試合が2軍戦だとTrueを返す
 def judge_farm(html):
     soup = BeautifulSoup(html, 'html.parser')
-    tag = soup.find('th', class_ = 'bb-splitsTable__head bb-splitsTable__head--bench')
+    tag = soup.find('th', class_='bb-splitsTable__head bb-splitsTable__head--bench')
     if tag is None:
         return True
     else:
@@ -170,3 +169,26 @@ def check_dir_exists(url):
     game_no_str = re.search('\d{10}', url).group()
     gameDir = os.getcwd() + f'\\HTML\\{game_no_str}'
     return os.path.exists(gameDir)
+
+
+def take_player_list():
+    team_number_list = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '11', '12', '376']
+    root_url = 'https://baseball.yahoo.co.jp/npb/teams/'
+    root_dir = os.getcwd() + '\\HTML_player'
+
+    for team_number in team_number_list:
+        team_url = root_url + team_number + '/memberlist'
+        p_url = team_url + '?kind=p'
+        b_url = team_url + '?kind=b'
+        time.sleep(0.5)
+        p_result = requests.get(p_url)
+        time.sleep(0.5)
+        b_result = requests.get(b_url)
+
+        os.makedirs(fr'{root_dir}\{team_number}', exist_ok=True)
+        with open(fr'{root_dir}\{team_number}\P.html', 'w', encoding='utf-8') as f:
+            f.write(p_result.text)
+            print('Done')
+        with open(fr'{root_dir}\{team_number}\B.html', 'w', encoding='utf-8') as f:
+            f.write(b_result.text)
+            print('Done')
