@@ -235,24 +235,78 @@ def take_runner(soup):
     return runner_list
 
 
+#  選手のプロフィールを取ってくる
+def take_player_profile(soup):
+    player_name = soup.select_one('#contentMain > div > div.bb-main > '
+                                  'div.bb-modCommon01 > div > div > div >'
+                                  ' ruby > h1').get_text().replace(' ', '')
+    uniform_number = int(soup.select_one('#contentMain > div > div.bb-main > '
+                                         'div.bb-modCommon01 > div > div > div > '
+                                         'div > p.bb-profile__number').get_text())
+    position = soup.select_one('#contentMain > div > div.bb-main > '
+                               'div.bb-modCommon01 > div > div > div > div > '
+                               'p.bb-profile__position').get_text()
+
+    dominant_arm = soup.select_one('#contentMain > div > div.bb-main > '
+                                   'div.bb-modCommon01 > div > div > div > '
+                                   'dl:nth-child(6) > dd').get_text()
+    throw_arm = dominant_arm[0]
+    batting_arm = dominant_arm[3]
+
+    height_and_weight = soup.select_one('#contentMain > div > div.bb-main > '
+                                        'div.bb-modCommon01 > div > div > div > '
+                                        'dl:nth-child(5) > dd').get_text()
+    height = int(re.findall(r'\d+', height_and_weight)[0])
+    weight = int(re.findall(r'\d+', height_and_weight)[1])
+
+    date_of_birth_tag = soup.select_one('#contentMain > div > div.bb-main > '
+                                        'div.bb-modCommon01 > div > div > '
+                                        'div > dl:nth-child(3) > '
+                                        'dd').get_text().split('（')[0]
+    date_split_list = re.findall(r'\d+', date_of_birth_tag)
+    date_of_birth = f'{date_split_list[0]}-{date_split_list[1]}-{date_split_list[2]}'
+
+    draft_tag = soup.select_one('#contentMain > div > div.bb-main > '
+                                'div.bb-modCommon01 > div > div > div > '
+                                'dl:nth-child(7) > dd').get_text()
+    draft_year = int(re.search(r'\d{4}', draft_tag).group())
+    draft_rank = int(re.search(r'\d{1,2}?', draft_tag).group())
+
+    total_year_tag = soup.select_one('#contentMain > div > div.bb-main > '
+                                     'div.bb-modCommon01 > div > div > div > '
+                                     'dl:nth-child(8) > dd').get_text()
+    total_year = int(re.search(r'\d+', total_year_tag).group())
+
+    return (player_name, uniform_number, position, date_of_birth, height, weight,
+            throw_arm, batting_arm, draft_year, draft_rank, total_year)
+
+
 if __name__ == '__main__':
-    with open(r'D:/prog/MatchRecorder/HTML/2020061901/0410500.html', encoding='utf-8') as f:
-        soup_main = BeautifulSoup(f, 'html.parser')
+    print('入力:', end='')
+    n = input()
 
-        top_or_bottom_main = int(f.name[-10])
+    if n == '1':
+        with open(r'D:/prog/MatchRecorder/HTML_player/1/11888.html', encoding='utf-8') as f:
+            soup_main = BeautifulSoup(f, 'html.parser')
+            print(take_player_profile(soup_main))
 
-        pitch_list = take_pitch_list(soup_main)
+    if n == '2':
+        with open(r'D:/prog/MatchRecorder/HTML/2020061901/0410500.html', encoding='utf-8') as f:
+            soup_main = BeautifulSoup(f, 'html.parser')
+            top_or_bottom_main = int(f.name[-10])
 
-        for i, coordinate in enumerate(take_coordinate_list(soup_main)):
-            pitch_list[i] += coordinate
+            pitch_list = take_pitch_list(soup_main)
 
-        print('日付:', take_date(soup_main))
-        print('対戦情報:', take_match_player_data(soup_main, top_or_bottom_main))
-        print('ピッチリスト:', pitch_list)
-        print('キャッチャー:', take_catcher_name(soup_main, top_or_bottom_main))
-        print('アウト:', judge_out(soup_main))
-        print('第何打席:', take_plate_appearances(soup_main))
-        print('打者数:', take_match_batter_number(soup_main, top_or_bottom_main))
-        print('守備:', take_defense(soup_main, top_or_bottom_main))
-        print('リザルト:', take_result_at_bat(soup_main))
-        print('ランナー:', take_runner(soup_main))
+            for i, coordinate in enumerate(take_coordinate_list(soup_main)):
+                pitch_list[i] += coordinate
+
+            print('日付:', take_date(soup_main))
+            print('対戦情報:', take_match_player_data(soup_main, top_or_bottom_main))
+            print('ピッチリスト:', pitch_list)
+            print('キャッチャー:', take_catcher_name(soup_main, top_or_bottom_main))
+            print('アウト:', judge_out(soup_main))
+            print('第何打席:', take_plate_appearances(soup_main))
+            print('打者数:', take_match_batter_number(soup_main, top_or_bottom_main))
+            print('守備:', take_defense(soup_main, top_or_bottom_main))
+            print('リザルト:', take_result_at_bat(soup_main))
+            print('ランナー:', take_runner(soup_main))
