@@ -272,6 +272,7 @@ def take_player_list():
             print('Done')
 
 
+#  選手個人のプロフィールを取ってくる
 def take_player_profile():
     take_player_list()
     team_number_list = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '11', '12', '376']
@@ -282,7 +283,7 @@ def take_player_profile():
         save_dir = rf'{os.getcwd()}\HTML_player\{team_number}'
 
         for player_url in team_player_url_list:
-            player_id = player_url.split('/')[6]
+            player_id = player_url.split('/')[5]
             player_file = save_dir+rf'\{player_id}.html'
             if os.path.exists(player_file):
                 continue
@@ -294,7 +295,7 @@ def take_player_profile():
                 print('Done')
 
 
-
+#  {チーム番号: チームのurlリスト}の形になった辞書型が帰ってくる
 def make_player_profile_url_list():
     team_number_list = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '11', '12', '376']
     url_list_by_team = {}
@@ -318,7 +319,7 @@ def make_player_profile_url_list():
 
 def make_player_profile_url(html):
     url_list = []
-    root_url = 'https://baseball.yahoo.co.jp/'
+    root_url = 'https://baseball.yahoo.co.jp'
     soup = BeautifulSoup(html, 'html.parser')
     tr_list = soup.select('#tm_plyr > tr')
     for tr in tr_list:
