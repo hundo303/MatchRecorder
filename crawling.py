@@ -20,35 +20,6 @@ def crawling(year, opening_date, ending_date):
     fetch_day(date_url_list)
 
 
-def crawling_game_stats(year, opening_date='01-01', ending_date='12-31'):
-    opening_month = int(opening_date.split('-')[0])
-    opening_day = int(opening_date.split('-')[1])
-    ending_month = int(ending_date.split('-')[0])
-    ending_day = int(ending_date.split('-')[1])
-
-    date_url_list = make_date_url_list(year, opening_month, opening_day, ending_month, ending_day)
-    fetch_day_stats(date_url_list)
-
-
-def fetch_day_stats(date_url_list):
-    for date_url in date_url_list:
-        for game_no in range(1, 7):
-            score_url = date_url + str(game_no).zfill(2) + '/score'
-            stats_url = date_url + str(game_no).zfill(2) + '/stats'
-            url_status = check_url_stats(score_url)
-            if url_status[0]:
-                break
-            elif url_status[1]:
-                continue
-            else:
-                time.sleep(0.5)
-                result = requests.get(stats_url)
-                save_dir = os.getcwd() + fr'\HTML_game_stats\{stats_url[-16:-6]}.html'
-                with open(save_dir, 'w', encoding='utf-8') as f:
-                    f.write(result.text)
-                    print('Done')
-
-
 #  URLの日付の部分まで作る
 #  openingMonth/Dayは開幕日
 #  endingMonth/Dayは終了日
@@ -82,6 +53,9 @@ def fetch_day(date_url_list):
             score_url = date_url + str(game_no).zfill(2) + '/score'
             start_url = score_url + '?index=0110100'
 
+            if check_dir_exists(score_url):
+                continue
+
             url_status = check_url(score_url)
             if url_status[0]:
                 break
@@ -93,7 +67,7 @@ def fetch_day(date_url_list):
 
 #  再帰的に試合のHTMLを取得する
 def fetch_game_html(url):
-    time.sleep(0.5)
+    time.sleep(1)
     result = requests.get(url)
 
     #  404ならエラーを返す
@@ -102,7 +76,7 @@ def fetch_game_html(url):
 
     #  日付+ゲーム番号(例:2020061901)のディレクトリ名
     game_no_str = re.search(r'\d{10}', url).group()
-    gameDir = os.getcwd() + r'\HTML\{game_no_str}'
+    gameDir = os.getcwd() + rf'\HTML\{game_no_str}'
     #  そのディレクトリ無かったら作る
     if not os.path.exists(gameDir):
         os.mkdir(gameDir)
@@ -152,10 +126,7 @@ def check_finish(html):
 #  そのゲームのdirが存在する or ノーゲームなら(False, True)
 #  その他は(False, False)を返す
 def check_url(url):
-    if check_dir_exists(url):
-        return False, True
-
-    time.sleep(0.5)
+    time.sleep(1)
     result = requests.get(url)
 
     if result.status_code == 404:
@@ -218,11 +189,46 @@ def check_dir_exists(url):
     return os.path.exists(gameDir)
 
 
-def check_url_stats(url):
-    if check_dir_exists_stats(url):
-        return False, True
+#  試合の出場成績を取ってくる
+def crawling_game_stats(year, opening_date='01-01', ending_date='12-31'):
+    opening_month = int(opening_date.split('-')[0])
+    opening_day = int(opening_date.split('-')[1])
+    ending_month = int(ending_date.split('-')[0])
+    ending_day = int(ending_date.split('-')[1])
 
-    time.sleep(0.5)
+    date_url_list = make_date_url_list(year, opening_month, opening_day, ending_month, ending_day)
+    fetch_day_stats(date_url_list)
+
+
+#  1軍の試合の出場成績をとってくる
+#  上関数で使用
+def fetch_day_stats(date_url_list):
+    for date_url in date_url_list:
+        for game_no in range(1, 7):
+            score_url = date_url + str(game_no).zfill(2) + '/score'
+            stats_url = date_url + str(game_no).zfill(2) + '/stats'
+
+            if check_dir_exists_stats(score_url):
+                continue
+
+            url_status = check_url_stats(score_url)
+            if url_status[0]:
+                break
+            elif url_status[1]:
+                continue
+            else:
+                time.sleep(1)
+                result = requests.get(stats_url)
+                save_dir = os.getcwd() + fr'\HTML_game_stats\{stats_url[-16:-6]}.html'
+                with open(save_dir, 'w', encoding='utf-8') as f:
+                    f.write(result.text)
+                    print('Done')
+
+
+#  出場成績用のURLチェック関数
+#  crawling_game_statsで使用
+def check_url_stats(url):
+    time.sleep(1)
     result = requests.get(url)
 
     if result.status_code == 404:
@@ -238,6 +244,7 @@ def check_url_stats(url):
         return False, False
 
 
+#  上関数で使用
 def check_dir_exists_stats(url):
     game_no_str = re.search('\d{10}', url).group()
     gameDir = os.getcwd() + f'\\HTML_game_stats\\{game_no_str}.html'
@@ -245,7 +252,7 @@ def check_dir_exists_stats(url):
 
 
 #  球団の選手リストを取ってくる
-def take_player_list():
+def get_player_list():
     team_number_list = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '11', '12', '376']
     root_url = 'https://baseball.yahoo.co.jp/npb/teams/'
 
@@ -258,9 +265,9 @@ def take_player_list():
         team_url = root_url + team_number + '/memberlist'
         p_url = team_url + '?kind=p'
         b_url = team_url + '?kind=b'
-        time.sleep(0.5)
+        time.sleep(1)
         p_result = requests.get(p_url)
-        time.sleep(0.5)
+        time.sleep(1)
         b_result = requests.get(b_url)
 
         os.makedirs(save_dir, exist_ok=True)
@@ -273,8 +280,8 @@ def take_player_list():
 
 
 #  選手個人のプロフィールを取ってくる
-def take_player_profile():
-    take_player_list()
+def get_player_profile():
+    get_player_list()
     team_number_list = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '11', '12', '376']
     player_profile_url_list = make_player_profile_url_list()
 
@@ -288,7 +295,7 @@ def take_player_profile():
             if os.path.exists(player_file):
                 continue
 
-            time.sleep(0.5)
+            time.sleep(1)
             result = requests.get(player_url)
             with open(player_file, 'w', encoding='utf-8') as f:
                 f.write(result.text)
@@ -317,6 +324,7 @@ def make_player_profile_url_list():
     return url_list_by_team
 
 
+#  上関数で使用
 def make_player_profile_url(html):
     url_list = []
     root_url = 'https://baseball.yahoo.co.jp'

@@ -269,8 +269,12 @@ def take_player_profile(soup):
     draft_tag = soup.select_one('#contentMain > div > div.bb-main > '
                                 'div.bb-modCommon01 > div > div > div > '
                                 'dl:nth-child(7) > dd').get_text()
-    draft_year = int(re.search(r'\d{4}', draft_tag).group())
-    draft_rank = int(re.search(r'\d{1,2}?', draft_tag).group())
+    if draft_tag == '-':
+        draft_year = None
+        draft_rank = None
+    else:
+        draft_year = int(re.search(r'\d{4}', draft_tag).group())
+        draft_rank = draft_tag[5:].replace('（', '').replace('）', '')
 
     total_year_tag = soup.select_one('#contentMain > div > div.bb-main > '
                                      'div.bb-modCommon01 > div > div > div > '
@@ -286,12 +290,12 @@ if __name__ == '__main__':
     n = input()
 
     if n == '1':
-        with open(r'D:/prog/MatchRecorder/HTML_player/1/11888.html', encoding='utf-8') as f:
+        with open(r'D:/prog/MatchRecorder/HTML_player/1/1600068.html', encoding='utf-8') as f:
             soup_main = BeautifulSoup(f, 'html.parser')
             print(take_player_profile(soup_main))
 
     if n == '2':
-        with open(r'D:/prog/MatchRecorder/HTML/2020061901/0410500.html', encoding='utf-8') as f:
+        with open(r'D:/prog/MatchRecorder/HTML/2020061906/0110100.html', encoding='utf-8') as f:
             soup_main = BeautifulSoup(f, 'html.parser')
             top_or_bottom_main = int(f.name[-10])
 

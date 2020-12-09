@@ -3,6 +3,34 @@ import glob
 from bs4 import BeautifulSoup
 import scrayping as sp
 
+#  通常、打席途中での代打は「2ストライクから代打の場合を除いて、打席終了時の打者の行為として扱う」が
+#  このシステムでは2ストライクでの交代でも打席終了時の打者の記録として扱う。
+#  また打席途中の投手交代は「ボール先行からの登板以外は救援投手の責任とする」が
+#  このシステムではボール先行からの登板であっても救援投手の責任として扱う。
+#  よって多少の誤差が発生するのでごめんなさい
+
+
+def write_player_profile():
+    count = 0
+    count_dic = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0,
+                 '9': 0, '11': 0, '12': 0, '376': 0}
+    files = glob.glob(os.getcwd() + r'\HTML_player\*\*')
+    for file in files:
+        if 'B.html' in file or 'P.html' in file:
+            continue
+
+        team_number_str = file.split('\\')[-2]
+
+        count += 1
+        count_dic[team_number_str] += 1
+
+        if team_number_str == '5':
+            with open(file, encoding='utf=8') as f:
+                soup = BeautifulSoup(f, 'html.parser')
+                print(sp.take_player_profile(soup))
+    print(count)
+    print(count_dic)
+
 
 #  次のページがあるかを確認する
 def exists_next_page(html_dir):
@@ -48,3 +76,7 @@ def judge_next_state(pitch_list, result_at_bat):
             return 2
     else:
         return 1
+
+
+if __name__ == '__main__':
+    write_player_profile()
