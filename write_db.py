@@ -2,6 +2,7 @@ import os
 import glob
 from bs4 import BeautifulSoup
 import scrayping as sp
+import sqlite3
 
 #  通常、打席途中での代打は「2ストライクから代打の場合を除いて、打席終了時の打者の行為として扱う」が
 #  このシステムでは2ストライクでの交代でも打席終了時の打者の記録として扱う。
@@ -11,25 +12,57 @@ import scrayping as sp
 
 
 def write_player_profile():
-    count = 0
-    count_dic = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0,
-                 '9': 0, '11': 0, '12': 0, '376': 0}
+    #  dbファイルの取り込み
+    cnn = sqlite3.connect('baseball.db')
+    c = cnn.cursor()
+
+    #  テーブルが無い場合はテーブルを作成
+    c.execute('CREATE TABLE IF NOT EXISTS player('
+              'id integer NOT NULL UNIQUE ,'
+              'team text NOT NULL,'
+              'name text NOT NULL,'
+              'uniform_number integer NOT NULL,'
+              'position text NOT NULL, '
+              'date_of_birth date, '
+              'height integer, '
+              'weight integer, '
+              'throw_arm text, '
+              'batting_arm text, '
+              'draft_year integer, '
+              'draft_rank text, '
+              'total_year integer)')
+
+    #  htmlファイルを取得
     files = glob.glob(os.getcwd() + r'\HTML_player\*\*')
+
+    #  htmlファイルをループで回す
     for file in files:
+        #  チームの選手一覧は除外
         if 'B.html' in file or 'P.html' in file:
             continue
 
-        team_number_str = file.split('\\')[-2]
+        #  ファイル名からIDを取得
+        player_id = int(os.path.basename(file).replace('.html', ''))
 
-        count += 1
-        count_dic[team_number_str] += 1
+        #  ディレクトリ名からチーム名を取得
+        team_name_list = {1: '巨人', 2: 'ヤクルト', 3: 'DeNA', 4: '中日', 5: '阪神', 6: '広島',
+                          7: '西武', 8: '日本ハム', 9: 'ロッテ', 11: 'オリックス', 12: 'ソフトバンク', 376: '楽天'}
+        team_number = int(os.path.basename(os.path.dirname(file)))
+        team = team_name_list[team_number]
 
-        if team_number_str == '5':
-            with open(file, encoding='utf=8') as f:
-                soup = BeautifulSoup(f, 'html.parser')
-                print(sp.take_player_profile(soup))
-    print(count)
-    print(count_dic)
+        #  dbファイルへの書き込み
+        with open(file, encoding='utf=8') as f:
+            soup = BeautifulSoup(f, 'html.parser')
+
+            #  take_player_profileのタプルにidとteamを加えて最終的なタプルを作成
+            profile_tuple = sp.take_player_profile(soup)
+            profile_tuple = (player_id, team) + profile_tuple
+
+            c.execute('INSERT INTO player VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                      profile_tuple)
+
+    cnn.commit()
+    cnn.close()
 
 
 #  次のページがあるかを確認する
