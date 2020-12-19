@@ -59,6 +59,10 @@ def take_count(pitch_result, strike_count, ball_count):
 #  打席がアウトか判定する
 def judge_out(soup):
     tr_list = soup.select('#pitchesDetail > section:nth-child(2) > table:nth-child(3) > tbody > tr')
+
+    if not tr_list:
+        return False
+
     td_list = tr_list[-1].select('td')
     pitch_result_class = td_list[0].span.get('class')[1]
     pitch_result_number = int(pitch_result_class[-1])
@@ -181,9 +185,9 @@ def take_coordinate_list(soup):
 
     for style_tag in span_list:
         style_text = style_tag.get('style')
-        top_text = re.search(r'top:\d+', style_text).group()
+        top_text = re.search(r'top:-?\d+', style_text).group()
         top = int(top_text.replace('top:', ''))
-        left_text = re.search(r'left:\d+', style_text).group()
+        left_text = re.search(r'left:-?\d+', style_text).group()
         left = int(left_text.replace('left:', ''))
 
         coordinate_list.append((top, left))
@@ -219,8 +223,14 @@ def take_defense(soup, top_or_bottom):
 #  打席の結果を返す
 def take_result_at_bat(soup):
     result_at_bat = soup.select_one('#result')
-    result_span = result_at_bat.span.get_text()
-    result_em = result_at_bat.em.get_text()
+    if result_at_bat.span is None:
+        result_span = ''
+    else:
+        result_span = result_at_bat.span.get_text()
+    if result_at_bat.em is None:
+        result_em = ''
+    else:
+        result_em = result_at_bat.em.get_text()
     return result_span, result_em
 
 
@@ -314,9 +324,9 @@ if __name__ == '__main__':
     n = input()
 
     if n == '1':
-        with open(r'D:/prog/MatchRecorder/HTML/2020082501/0710401.html', encoding='utf-8') as f:
+        with open(r'D:/prog/MatchRecorder/HTML/2020061901/0720000.html', encoding='utf-8') as f:
             soup_main = BeautifulSoup(f, 'html.parser')
-            print(judge_non_butter(soup_main))
+            print(judge_no_pitch(soup_main), judge_non_butter(soup_main))
 
     if n == '2':
         with open(r'D:/prog/MatchRecorder/HTML/2020061906/0110100.html', encoding='utf-8') as f:

@@ -15,17 +15,18 @@ import sqlite3
 def main_kari():
     files = glob.glob(os.getcwd() + r'\HTML\*\*')
     start_num = 0
+    id_at_bat = 1
 
-    cnn = sqlite3.connect('baseball.db')
+    cnn = sqlite3.connect('baseball_test.db')
     c = cnn.cursor()
-    c.execute('CREATE TABLE IF NOT EXISTS player('
-              'id-at-bat INTEGER NOT NULL,'
-              'pitcher-id INTEGER NOT NULL,'
-              'pitcher-left INTEGER NOT NULL,'
-              'batter-id INTEGER  NOT NULL,'
-              'batter-left INTEGER NOT NULL,'
-              'in-box-count INTEGER NOT NULL,'
-              'match-number-times INTEGER NOT NULL,'
+    c.execute('CREATE TABLE IF NOT EXISTS game_data('
+              'id_at_bat INTEGER NOT NULL,'
+              'pitcher_id INTEGER NOT NULL,'
+              'pircher_left INTEGER NOT NULL,'
+              'batter_id INTEGER  NOT NULL,'
+              'batter_left INTEGER NOT NULL,'
+              'in_box_count INTEGER NOT NULL,'
+              'match_number_times INTEGER NOT NULL,'
               'c TEXT NOT NULL,'
               'first TEXT NOT NULL,'
               'second TEXT NOT NULL,'
@@ -34,47 +35,80 @@ def main_kari():
               'lf TEXT NOT NULL,'
               'cf TEXT NOT NULL,'
               'rf TEXT NOT NULL,'
-              'first-runner TEXT,'
-              'second-runner TEXT,'
-              'third-runner TEXT,'
-              'number-pitch-at-bat INTEGER NOT NULL,'
-              'number-pitch-game INTEGER NOT NULL,'
-              'ball-type TEXT NOT NULL,'
-              'speed INTEGER NOT NULL,'
-              'ball-result TEXT NOT NULL,'
-              'ball-count INTEGER NOT NULL,'
-              'strike-count INTEGER NOT NULL,'
-              'top-coordinate INTEGER NOT NULL,'
-              'left-coordinate INTEGER NOT NULL,'
+              'first_runner TEXT,'
+              'second_runner TEXT,'
+              'third_runner TEXT,'
+              'number_pitch_at_bat INTEGER NOT NULL,'
+              'number_pitch_game INTEGER NOT NULL,'
+              'ball_type TEXT NOT NULL,'
+              'speed INTEGER,'
+              'ball_result TEXT NOT NULL,'
+              'ball_count INTEGER NOT NULL,'
+              'strike_count INTEGER NOT NULL,'
+              'top_coordinate INTEGER NOT NULL,'
+              'left_coordinate INTEGER NOT NULL,'
               'steal INTEGER NOT NULL,'
-              'steam-non-pitch INTEGER NOT NULL)')
+              'steam_non_pitch INTEGER NOT NULL)')
+    c.execute('CREATE TABLE IF NOT EXISTS data_at_bat('
+              'id_at_bat INTEGER NOT NULL UNIQUE,'
+              'date DATE NOT NULL,'
+              'day_week TEXT NOT NULL,'
+              'out INTEGER NOT NULL,'
+              'rbi INTEGER NOT NULL,'
+              'result_big TEXT NOT NULL,'
+              'result_small TEXT NOT NULL,'
+              'intentional_alk NOT NULL)')
     cnn.commit()
+    cnn.close()
+    cnn = sqlite3.connect('baseball_test.db')
 
     for file in files:
-        steal = None
-        steal_non_pitch = None
+        print(file)
+        write_steal = False
+        steal_non_pitch = False
+        intentional_walk = False
 
         with open(file, encoding='utf-8') as f:
             top_or_bottom = int(f.name[-10])
-            soup = BeautifulSoup(f)
+            soup = BeautifulSoup(f, 'html.parser')
 
-            if sp.judge_no_pitch(soup) or sp.judge_non_butter(soup):
+            if '申告敬遠' in sp.take_result_at_bat(soup)[0]:
+                intentional_walk = True
+
+            elif sp.judge_no_pitch(soup) or sp.judge_non_butter(soup):
                 continue
 
             pitch_data_list = make_pitch_data_list(soup, top_or_bottom)
-            #  data_at_bat = make_data_at_bat(soup)
+            data_at_bat = make_data_at_bat(soup)
+
+            if not pitch_data_list:
+                write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat)
+                start_num = 0
+                id_at_bat += 1
+                continue
 
             if ('見逃し' or '空振り' or 'ボール' or 'ファウル') in pitch_data_list[-1]['ball_result']:
+                for steal in ('盗塁成功', '盗塁失敗'):
+                    if steal in data_at_bat['result_small']:
+                        write_steal = steal
+                        steal_non_pitch = False
+                        if steal in pitch_data_list[-1]['ball_result']:
+                            steal_non_pitch = True
 
-                write_pitch_data(cnn, start_num, pitch_data_list, steal, steal_non_pitch)
-                start_num = len(pitch_data_list)
+                if intentional_walk:
+                    write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat)
+                    start_num = 0
+                else:
+                    start_num = len(pitch_data_list)
 
             else:
-                write_pitch_data(cnn, start_num, pitch_data_list, steal, steal_non_pitch)
+                write_game_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
+                write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat)
                 start_num = 0
+                id_at_bat += 1
 
 
-def write_pitch_data(cnn, start_num, pitch_data_list, steal, steal_non_pitch):
+def write_game_data(cnn, start_num, pitch_data_list, steal, steal_non_pitch, id_at_bat):
     #  start_numより後ろのみ書き込む
     save_data_list = pitch_data_list[start_num:]
 
@@ -82,14 +116,22 @@ def write_pitch_data(cnn, start_num, pitch_data_list, steal, steal_non_pitch):
     #  stealとsteal_non_pitchを追加して最終的なタプルを作成
     for i in range(len(save_data_list)):
         save_data_list[i] = tuple(save_data_list[i].values())
+        save_data_list[i] = (id_at_bat,) + save_data_list[i]
         save_data_list[i] += (steal, steal_non_pitch)
 
     c = cnn.cursor()
 
-    c.executemany('INSERT INTO game_data (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    c.executemany('INSERT INTO game_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                   save_data_list)
 
     cnn.commit()
+
+
+def write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat):
+    save_data = (id_at_bat,) + tuple(data_at_bat.values()) + (intentional_walk,)
+    c = cnn.cursor()
+
+    c.execute('INSERT INTO data_at_bat VALUES (?,?,?,?,?,?,?,?)', save_data)
 
 
 def make_pitch_data_list(soup, top_or_bottom):
@@ -146,14 +188,6 @@ def make_pitch_data_list(soup, top_or_bottom):
                       'speed': speed, 'ball_result': ball_result, 'ball_count': ball_count,
                       'strike_count': strike_count, 'top_coordinate': top_coordinate,
                       'left_coordinate': left_coordinate}
-        '''
-        pitch_data = (pitcher_id, pitcher_left, batter_id, batter_left, in_box_count,
-                      match_batter_number_times, c, first, second, third, ss,
-                      lf, cf, rf, first_runner, second_runner, third_runner,
-                      number_pitch_at_bat, number_pitch_game, ball_type,
-                      speed, ball_result, ball_count, strike_count, top_coordinate,
-                      left_coordinate)
-        '''
 
         pitch_data_list.append(pitch_data)
 
@@ -260,4 +294,4 @@ if __name__ == '__main__':
         print(len(save_data_list_main[0]))
 #  ballリザルト読んで、盗塁成功か盗塁失敗があったらそれを返す関数
 '''
-    write_player_profile()
+    main_kari()
