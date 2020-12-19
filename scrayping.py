@@ -70,9 +70,11 @@ def judge_out(soup):
 
 #  日付と曜日を取ってくる
 def take_date(soup):
-    date_text = soup.select_one('#gm_menu > section > header > h1 > a').get_text()
+    date_tag = soup.select_one('#gm_menu > section > header > h1 > a')
+    date = date_tag.get('href')[-10:]
+
+    date_text = date_tag.get_text()
     date_split = date_text.split('（')
-    date = date_split[0]
     day_week = date_split[1].replace('）', '')
 
     return date, day_week
@@ -94,25 +96,25 @@ def take_match_player_data(soup, top_or_bottom):
 
 #  上の関数に使用
 def take_player_data(div):
-    team_number_str = div.get('class')[1]
-    team_name = judge_team_name(team_number_str)
+    #  team_number_str = div.get('class')[1]
+    #  team_name = judge_team_name(team_number_str)
 
     tr_nm_box = div.select_one('table > tbody > tr > '
                                'td:nth-child(2) > table > '
                                'tbody > tr.nm_box')
 
     id_url = tr_nm_box.select_one('td.nm > a').get('href')
-    player_id = id_url.split('/')[3]
+    player_id = int(id_url.split('/')[3])
 
-    name = tr_nm_box.select_one('td.nm > a').get_text().replace(' ', '')
+    #  name = tr_nm_box.select_one('td.nm > a').get_text().replace(' ', '')
 
-    uniform_number_str = tr_nm_box.select_one('td.nm > span').get_text()
-    uniform_number = int(uniform_number_str.replace('#', ''))
+    #  uniform_number_str = tr_nm_box.select_one('td.nm > span').get_text()
+    #  uniform_number = int(uniform_number_str.replace('#', ''))
 
     dominant_hand = tr_nm_box.select_one('td.dominantHand').get_text()
     left_hand = dominant_hand == '左投' or dominant_hand == '左打'
 
-    return name, uniform_number, left_hand, team_name, player_id
+    return player_id, left_hand
 
 
 # 上の関数に使用
@@ -224,7 +226,7 @@ def take_result_at_bat(soup):
 
 #  ランナーを辞書型で返す{1: '名前', 2: '名前',...}
 def take_runner(soup):
-    runner_list = {1: None, 2: None, 3: None, 4: None}
+    runner_list = {1: None, 2: None, 3: None}
     div_list = soup.select('#dakyu > div')
     for div in div_list:
         base_number = int(div.get('id')[-1])
@@ -233,6 +235,16 @@ def take_runner(soup):
         runner_list[base_number] = runner_name
 
     return runner_list
+
+
+def take_rbi(result):
+    match = re.search(r'＋\d点', result)
+    if match:
+        rbi_str = re.sub(r'\D', '', match.group())
+        rbi = int(rbi_str)
+        return rbi
+    else:
+        return 0
 
 
 #  選手のプロフィールを取ってくる
@@ -285,14 +297,26 @@ def take_player_profile(soup):
             throw_arm, batting_arm, draft_year, draft_rank, total_year)
 
 
+def judge_non_butter(soup):
+    tag = soup.select_one('#batt > tbody > tr > td:nth-child(2) > table > tbody >'
+                          ' tr.nm_box > td.nm')
+    return tag is None
+
+
+def judge_no_pitch(soup):
+    tag = soup.select_one('#pitchesDetail > section:nth-child(2) > table:nth-child(3)')
+
+    return tag is None
+
+
 if __name__ == '__main__':
     print('入力:', end='')
     n = input()
 
     if n == '1':
-        with open(r'D:/prog/MatchRecorder/HTML_player/1/1600068.html', encoding='utf-8') as f:
+        with open(r'D:/prog/MatchRecorder/HTML/2020082501/0710401.html', encoding='utf-8') as f:
             soup_main = BeautifulSoup(f, 'html.parser')
-            print(take_player_profile(soup_main))
+            print(judge_non_butter(soup_main))
 
     if n == '2':
         with open(r'D:/prog/MatchRecorder/HTML/2020061906/0110100.html', encoding='utf-8') as f:
@@ -307,7 +331,7 @@ if __name__ == '__main__':
             print('日付:', take_date(soup_main))
             print('対戦情報:', take_match_player_data(soup_main, top_or_bottom_main))
             print('ピッチリスト:', pitch_list)
-            print('キャッチャー:', take_catcher_name(soup_main, top_or_bottom_main))
+            #  print('キャッチャー:', take_catcher_name(soup_main, top_or_bottom_main))
             print('アウト:', judge_out(soup_main))
             print('第何打席:', take_plate_appearances(soup_main))
             print('打者数:', take_match_batter_number(soup_main, top_or_bottom_main))
