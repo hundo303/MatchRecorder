@@ -197,7 +197,8 @@ def take_coordinate_list(soup):
 
 #  守備を表示
 def take_defense(soup, top_or_bottom):
-    defense_dic = {}
+    defense_dic = {'捕': '不明', '一': '不明', '二': '不明', '三': '不明', '遊': '不明',
+                   '左': '不明', '中': '不明', '右': '不明', '指': '不明', '投': '不明'}
 
     pitcher_side = 'L' if top_or_bottom == 1 else 'R'
     defence_side = 'h' if top_or_bottom == 1 else 'a'
@@ -215,7 +216,11 @@ def take_defense(soup, top_or_bottom):
 
         position = td_list[1].get_text()
         player = td_list[2].a.get_text().replace(' ', '')
-        defense_dic[position] = player
+        if not position == '':
+            if defense_dic[position] == '不明':
+                defense_dic[position] = player
+            else:
+                defense_dic[position] += f'||{player}'
 
     return defense_dic
 
@@ -314,7 +319,7 @@ def judge_non_butter(soup):
 
 
 def judge_no_pitch(soup):
-    tag = soup.select_one('#pitchesDetail > section:nth-child(2) > table:nth-child(3)')
+    tag = soup.select_one('#pitchesDetail > section:nth-child(2) > table:nth-child(2)')
 
     return tag is None
 
@@ -324,9 +329,10 @@ if __name__ == '__main__':
     n = input()
 
     if n == '1':
-        with open(r'D:/prog/MatchRecorder/HTML/2020061901/0720000.html', encoding='utf-8') as f:
+        with open(r'D:/prog/MatchRecorder/HTML/2020072606/0810400.html', encoding='utf-8') as f:
             soup_main = BeautifulSoup(f, 'html.parser')
-            print(judge_no_pitch(soup_main), judge_non_butter(soup_main))
+            top_or_bottom_main = int(f.name[-10])
+            take_defense(soup_main, top_or_bottom_main)
 
     if n == '2':
         with open(r'D:/prog/MatchRecorder/HTML/2020061906/0110100.html', encoding='utf-8') as f:

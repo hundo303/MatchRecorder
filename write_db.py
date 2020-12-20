@@ -14,6 +14,7 @@ import sqlite3
 
 def main_kari():
     files = glob.glob(os.getcwd() + r'\HTML\*\*')
+    #  files = [os.getcwd() + r'\HTML\2020062105\0710400.html']
     start_num = 0
     id_at_bat = 1
 
@@ -47,26 +48,28 @@ def main_kari():
               'strike_count INTEGER NOT NULL,'
               'top_coordinate INTEGER NOT NULL,'
               'left_coordinate INTEGER NOT NULL,'
-              'steal INTEGER NOT NULL,'
-              'steam_non_pitch INTEGER NOT NULL)')
+              'steal TEXT,'
+              'steam_non_pitch INTEGER)')
     c.execute('CREATE TABLE IF NOT EXISTS data_at_bat('
               'id_at_bat INTEGER NOT NULL UNIQUE,'
+              'inning INTEGER NOT NULL,'
               'date DATE NOT NULL,'
               'day_week TEXT NOT NULL,'
               'out INTEGER NOT NULL,'
               'rbi INTEGER NOT NULL,'
               'result_big TEXT NOT NULL,'
               'result_small TEXT NOT NULL,'
-              'intentional_alk NOT NULL)')
+              'intentional_walk NOT NULL)')
     cnn.commit()
     cnn.close()
     cnn = sqlite3.connect('baseball_test.db')
 
     for file in files:
         print(file)
-        write_steal = False
-        steal_non_pitch = False
+        write_steal = None
+        steal_non_pitch = None
         intentional_walk = False
+        inning = file[-11]
 
         with open(file, encoding='utf-8') as f:
             top_or_bottom = int(f.name[-10])
@@ -82,28 +85,30 @@ def main_kari():
             data_at_bat = make_data_at_bat(soup)
 
             if not pitch_data_list:
-                write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat)
+                write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
                 start_num = 0
                 id_at_bat += 1
                 continue
 
-            if ('見逃し' or '空振り' or 'ボール' or 'ファウル') in pitch_data_list[-1]['ball_result']:
-                for steal in ('盗塁成功', '盗塁失敗'):
-                    if steal in data_at_bat['result_small']:
-                        write_steal = steal
-                        steal_non_pitch = False
-                        if steal in pitch_data_list[-1]['ball_result']:
-                            steal_non_pitch = True
+            for steal in ('盗塁成功', '盗塁失敗'):
+                if steal in data_at_bat['result_small'] and not '盗塁成功率' in data_at_bat['result_small']:
+                    write_steal = steal
+                    steal_non_pitch = False
+                    if steal in pitch_data_list[-1]['ball_result']:
+                        steal_non_pitch = True
 
+            if any(four_result in pitch_data_list[-1]['ball_result'] for four_result in ('見逃し', '空振り', 'ボール', 'ファウル')):
                 if intentional_walk:
-                    write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat)
+                    write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
                     start_num = 0
+                    id_at_bat += 1
                 else:
+                    write_game_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
                     start_num = len(pitch_data_list)
 
             else:
                 write_game_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
-                write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat)
+                write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
                 start_num = 0
                 id_at_bat += 1
 
@@ -127,11 +132,11 @@ def write_game_data(cnn, start_num, pitch_data_list, steal, steal_non_pitch, id_
     cnn.commit()
 
 
-def write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat):
-    save_data = (id_at_bat,) + tuple(data_at_bat.values()) + (intentional_walk,)
+def write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning):
+    save_data = (id_at_bat, inning) + tuple(data_at_bat.values()) + (intentional_walk,)
     c = cnn.cursor()
 
-    c.execute('INSERT INTO data_at_bat VALUES (?,?,?,?,?,?,?,?)', save_data)
+    c.execute('INSERT INTO data_at_bat VALUES (?,?,?,?,?,?,?,?,?)', save_data)
 
 
 def make_pitch_data_list(soup, top_or_bottom):
@@ -148,6 +153,7 @@ def make_pitch_data_list(soup, top_or_bottom):
     match_batter_number_times = sp.take_match_batter_number(soup, top_or_bottom)
 
     defense = sp.take_defense(soup, top_or_bottom)
+
     c = defense['捕']
     first = defense['一']
     second = defense['二']
