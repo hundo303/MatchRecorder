@@ -11,16 +11,21 @@ import sqlite3
 #  このシステムではボール先行からの登板であっても救援投手の責任として扱う。
 #  よって多少の誤差が発生するのでごめんなさい
 
-
-def main_kari():
-    files = glob.glob(os.getcwd() + r'\HTML\*\*')
-    #  files = [os.getcwd() + r'\HTML\2020062105\0710400.html']
+#  hoge.dbに投球データと打席データを書き込む(それぞれテーブルが無ければ作成)
+#  (db_name = hoge.db,year='2020', start_date='01-01')みたいに渡してほしい
+def write_game_data(db_name, year, start_date):
+    files = glob.glob(r'./HTML/*/*')
+    #  files = glob.glob(os.getcwd() + r'\HTML\*\*')
+    #  files = [os.getcwd() + r'\HTML\2020061903\0210200.html']
     start_num = 0
     id_at_bat = 1
+    month = start_date.split('-')[0]
+    day = start_date.split('-')[1]
 
-    cnn = sqlite3.connect('baseball_test.db')
+    cnn = sqlite3.connect(db_name)
     c = cnn.cursor()
-    c.execute('CREATE TABLE IF NOT EXISTS game_data('
+    #  テーブルの作成
+    c.execute('CREATE TABLE IF NOT EXISTS pitch_data('
               'id_at_bat INTEGER NOT NULL,'
               'pitcher_id INTEGER NOT NULL,'
               'pircher_left INTEGER NOT NULL,'
@@ -49,27 +54,39 @@ def main_kari():
               'top_coordinate INTEGER NOT NULL,'
               'left_coordinate INTEGER NOT NULL,'
               'steal TEXT,'
-              'steam_non_pitch INTEGER)')
+              'steal_non_pitch INTEGER)')
     c.execute('CREATE TABLE IF NOT EXISTS data_at_bat('
               'id_at_bat INTEGER NOT NULL UNIQUE,'
               'inning INTEGER NOT NULL,'
               'date DATE NOT NULL,'
               'day_week TEXT NOT NULL,'
+              'attack_team TEXT NOT NULL,'
+              'defence_team TEXT NOT NULL,'
               'out INTEGER NOT NULL,'
               'rbi INTEGER NOT NULL,'
               'result_big TEXT NOT NULL,'
               'result_small TEXT NOT NULL,'
               'intentional_walk NOT NULL)')
     cnn.commit()
+
+    #  新規じゃなくて追加のとき用
+    c.execute('SELECT MAX(id_at_bat) FROM data_at_bat')
+    last_id = c.fetchone()
+    if not last_id == (None,):
+        id_at_bat = last_id[0] + 1
+
     cnn.close()
-    cnn = sqlite3.connect('baseball_test.db')
+    cnn = sqlite3.connect(db_name)
 
     for file in files:
         print(file)
         write_steal = None
         steal_non_pitch = None
         intentional_walk = False
-        inning = file[-11]
+        inning = int(file[-12:-10])
+
+        if int(file[-23:-15]) < int(year + month + day):
+            continue
 
         with open(file, encoding='utf-8') as f:
             top_or_bottom = int(f.name[-10])
@@ -82,7 +99,7 @@ def main_kari():
                 continue
 
             pitch_data_list = make_pitch_data_list(soup, top_or_bottom)
-            data_at_bat = make_data_at_bat(soup)
+            data_at_bat = make_data_at_bat(soup, top_or_bottom)
 
             if not pitch_data_list:
                 write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
@@ -94,7 +111,7 @@ def main_kari():
                 if steal in data_at_bat['result_small'] and not '盗塁成功率' in data_at_bat['result_small']:
                     write_steal = steal
                     steal_non_pitch = False
-                    if steal in pitch_data_list[-1]['ball_result']:
+                    if not steal in pitch_data_list[-1]['ball_result']:
                         steal_non_pitch = True
 
             if any(four_result in pitch_data_list[-1]['ball_result'] for four_result in ('見逃し', '空振り', 'ボール', 'ファウル')):
@@ -103,17 +120,18 @@ def main_kari():
                     start_num = 0
                     id_at_bat += 1
                 else:
-                    write_game_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
+                    write_pitch_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
                     start_num = len(pitch_data_list)
 
             else:
-                write_game_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
+                write_pitch_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
                 write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
                 start_num = 0
                 id_at_bat += 1
 
 
-def write_game_data(cnn, start_num, pitch_data_list, steal, steal_non_pitch, id_at_bat):
+#  write_game_dataで使用
+def write_pitch_data(cnn, start_num, pitch_data_list, steal, steal_non_pitch, id_at_bat):
     #  start_numより後ろのみ書き込む
     save_data_list = pitch_data_list[start_num:]
 
@@ -122,23 +140,28 @@ def write_game_data(cnn, start_num, pitch_data_list, steal, steal_non_pitch, id_
     for i in range(len(save_data_list)):
         save_data_list[i] = tuple(save_data_list[i].values())
         save_data_list[i] = (id_at_bat,) + save_data_list[i]
-        save_data_list[i] += (steal, steal_non_pitch)
+        if i == len(save_data_list) - 1:
+            save_data_list[i] += (steal, steal_non_pitch)
+        else:
+            save_data_list[i] += (None, None)
 
     c = cnn.cursor()
 
-    c.executemany('INSERT INTO game_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    c.executemany('INSERT INTO pitch_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                   save_data_list)
 
     cnn.commit()
 
 
+#  write_game_dataで使用
 def write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning):
     save_data = (id_at_bat, inning) + tuple(data_at_bat.values()) + (intentional_walk,)
     c = cnn.cursor()
 
-    c.execute('INSERT INTO data_at_bat VALUES (?,?,?,?,?,?,?,?,?)', save_data)
+    c.execute('INSERT INTO data_at_bat VALUES (?,?,?,?,?,?,?,?,?,?,?)', save_data)
 
 
+#  write_game_dataで使用
 def make_pitch_data_list(soup, top_or_bottom):
     pitch_data_list = []
 
@@ -200,10 +223,15 @@ def make_pitch_data_list(soup, top_or_bottom):
     return pitch_data_list
 
 
-def make_data_at_bat(soup):
+#  write_game_dataで使用
+def make_data_at_bat(soup, top_or_bottom):
     date_list = sp.take_date(soup)
     date = date_list[0]
     day_week = date_list[1]
+
+    match_team = sp.take_match_team(soup, top_or_bottom)
+    attack_team = match_team[0]
+    defence_team = match_team[1]
 
     out = sp.judge_out(soup)
 
@@ -213,15 +241,17 @@ def make_data_at_bat(soup):
 
     rbi = sp.take_rbi(result_big)
 
-    data_at_bat = {'data': date, 'day_week': day_week, 'out': out, 'rbi': rbi,
-                   'result_big': result_big, 'result_small': result_small}
+    data_at_bat = {'data': date, 'day_week': day_week, 'attack_team': attack_team, 'defence_team': defence_team,
+                   'out': out, 'rbi': rbi, 'result_big': result_big, 'result_small': result_small}
 
     return data_at_bat
 
 
-def write_player_profile():
+#  選手の情報をhoge.dbに書き込む(テーブルが無ければ作成)
+#  hoge.dbみたいに渡してほしい
+def write_player_profile(db_name):
     #  dbファイルの取り込み
-    cnn = sqlite3.connect('baseball.db')
+    cnn = sqlite3.connect(db_name)
     c = cnn.cursor()
 
     #  テーブルが無い場合はテーブルを作成
@@ -241,13 +271,16 @@ def write_player_profile():
               'total_year integer)')
 
     #  htmlファイルを取得
-    files = glob.glob(os.getcwd() + r'\HTML_player\*\*')
+    files = glob.glob('./HTML_player/*/*')
+    #  files = glob.glob(os.getcwd() + r'\HTML_player\*\*')
 
     #  htmlファイルをループで回す
     for file in files:
         #  チームの選手一覧は除外
         if 'B.html' in file or 'P.html' in file:
             continue
+
+        print(file)
 
         #  ファイル名からIDを取得
         player_id = int(os.path.basename(file).replace('.html', ''))
@@ -273,31 +306,7 @@ def write_player_profile():
     cnn.close()
 
 
-def judge_next_state(pitch_list, result_at_bat):
-    pitch_result = pitch_list[-1][4]
-    if ('見逃し' or '空振り' or 'ボール' or 'ファウル') in pitch_result:
-        if ('代打' or '続投') in result_at_bat:
-            return 3
-        else:
-            return 2
-    else:
-        return 1
-
-
 if __name__ == '__main__':
-    '''
-    start_num_main = 0
-    with open(r'D:/prog/MatchRecorder/HTML/2020082501/0110100.html', encoding='utf-8') as f:
-        soup_main = BeautifulSoup(f, 'html.parser')
-        top_or_bottom_main = int(f.name[-10])
-
-        pitch_data_list_main, data_at_bat_main = make_data_list(soup_main, top_or_bottom_main)
-
-        save_data_list_main = pitch_data_list_main[start_num_main:]
-        for i in range(len(save_data_list_main)):
-            save_data_list_main[i] = tuple(save_data_list_main[i].values())
-
-        print(len(save_data_list_main[0]))
-#  ballリザルト読んで、盗塁成功か盗塁失敗があったらそれを返す関数
-'''
-    main_kari()
+    db_name_main = 'baseball.db'
+    write_player_profile(db_name_main)
+    write_game_data(db_name_main, '2020', '06-19')

@@ -76,14 +76,15 @@ def fetch_game_html(url):
 
     #  日付+ゲーム番号(例:2020061901)のディレクトリ名
     game_no_str = re.search(r'\d{10}', url).group()
-    gameDir = os.getcwd() + rf'\HTML\{game_no_str}'
+    game_dir = rf'./HTML/{game_no_str}'
+    #  game_dir = os.getcwd() + rf'\HTML\{game_no_str}'
     #  そのディレクトリ無かったら作る
-    if not os.path.exists(gameDir):
-        os.mkdir(gameDir)
+    if not os.path.exists(game_dir):
+        os.mkdir(game_dir)
 
     index = url[-7:]
     #  HTMLファイルの保存
-    with open(gameDir + r'\{index}.html', 'w', encoding='utf-8') as f:
+    with open(game_dir + r'\{index}.html', 'w', encoding='utf-8') as f:
         f.write(result.text)
         print('Done')
 
@@ -185,8 +186,9 @@ def judge_farm_stats(html):
 #  そのゲームのdirが存在したらTrueを返す
 def check_dir_exists(url):
     game_no_str = re.search('\d{10}', url).group()
-    gameDir = os.getcwd() + f'\\HTML\\{game_no_str}'
-    return os.path.exists(gameDir)
+    game_dir = fr'./HTML/{game_no_str}'
+    #  game_dir = os.getcwd() + f'\\HTML\\{game_no_str}'
+    return os.path.exists(game_dir)
 
 
 #  試合の出場成績を取ってくる
@@ -219,7 +221,8 @@ def fetch_day_stats(date_url_list):
             else:
                 time.sleep(1)
                 result = requests.get(stats_url)
-                save_dir = os.getcwd() + fr'\HTML_game_stats\{stats_url[-16:-6]}.html'
+                save_dir = fr'/HTML_game_stats/{stats_url[-16:-6]}.html'
+                #  save_dir = os.getcwd() + fr'\HTML_game_stats\{stats_url[-16:-6]}.html'
                 with open(save_dir, 'w', encoding='utf-8') as f:
                     f.write(result.text)
                     print('Done')
@@ -247,8 +250,9 @@ def check_url_stats(url):
 #  上関数で使用
 def check_dir_exists_stats(url):
     game_no_str = re.search('\d{10}', url).group()
-    gameDir = os.getcwd() + f'\\HTML_game_stats\\{game_no_str}.html'
-    return os.path.exists(gameDir)
+    game_dir = fr'/HTML_game_stats/{game_no_str}.html'
+    #  game_dir = os.getcwd() + f'\\HTML_game_stats\\{game_no_str}.html'
+    return os.path.exists(game_dir)
 
 
 #  球団の選手リストを取ってくる
@@ -257,7 +261,8 @@ def get_player_list():
     root_url = 'https://baseball.yahoo.co.jp/npb/teams/'
 
     for team_number in team_number_list:
-        save_dir = fr'{os.getcwd()}\HTML_player\{team_number}'
+        save_dir = fr'./HTML_player/{team_number}'
+        #  save_dir = fr'{os.getcwd()}\HTML_player\{team_number}'
 
         if os.path.exists(save_dir):
             continue
@@ -287,7 +292,8 @@ def get_player_profile():
 
     for team_number in team_number_list:
         team_player_url_list = player_profile_url_list[team_number]
-        save_dir = rf'{os.getcwd()}\HTML_player\{team_number}'
+        save_dir = fr'./HTML_player/{team_number}'
+        #  save_dir = rf'{os.getcwd()}\HTML_player\{team_number}'
 
         for player_url in team_player_url_list:
             player_id = player_url.split('/')[5]
@@ -310,8 +316,11 @@ def make_player_profile_url_list():
     for team_number in team_number_list:
         team_url_list = []
 
-        pitcher_list_dir = fr'{os.getcwd()}\HTML_player\{team_number}\P.html'
-        batter_list_dir = fr'{os.getcwd()}\HTML_player\{team_number}\B.html'
+        pitcher_list_dir = fr'./HTML_player/{team_number}/P.html'
+        batter_list_dir = fr'./HTML_player/{team_number}/B.html'
+
+        #  pitcher_list_dir = fr'{os.getcwd()}\HTML_player\{team_number}\P.html'
+        #  batter_list_dir = fr'{os.getcwd()}\HTML_player\{team_number}\B.html'
 
         with open(pitcher_list_dir, encoding='utf-8') as f:
             team_url_list.extend(make_player_profile_url(f))

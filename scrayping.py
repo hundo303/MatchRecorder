@@ -110,13 +110,11 @@ def take_player_data(div):
     id_url = tr_nm_box.select_one('td.nm > a').get('href')
     player_id = int(id_url.split('/')[3])
 
-    #  name = tr_nm_box.select_one('td.nm > a').get_text().replace(' ', '')
-
-    #  uniform_number_str = tr_nm_box.select_one('td.nm > span').get_text()
-    #  uniform_number = int(uniform_number_str.replace('#', ''))
-
-    dominant_hand = tr_nm_box.select_one('td.dominantHand').get_text()
-    left_hand = dominant_hand == '左投' or dominant_hand == '左打'
+    if tr_nm_box.select_one('td.dominantHand') is None:
+        left_hand = False
+    else:
+        dominant_hand = tr_nm_box.select_one('td.dominantHand').get_text()
+        left_hand = (dominant_hand == '左投' or dominant_hand == '左打')
 
     return player_id, left_hand
 
@@ -324,15 +322,28 @@ def judge_no_pitch(soup):
     return tag is None
 
 
+def take_match_team(soup, top_or_bottom):
+    first_team = soup.select_one('#ing_brd > tbody > tr:nth-child(1) > '
+                                 'td.bb-gameScoreTable__data.bb-gameScoreTable__data--team > '
+                                 'a').get_text()
+    second_team = soup.select_one('#ing_brd > tbody > tr:nth-child(2) > '
+                                  'td.bb-gameScoreTable__data.bb-gameScoreTable__data--team > '
+                                  'a').get_text()
+    if top_or_bottom == 1:
+        return first_team, second_team
+    elif top_or_bottom == 2:
+        return second_team, first_team
+
+
 if __name__ == '__main__':
     print('入力:', end='')
     n = input()
 
     if n == '1':
-        with open(r'D:/prog/MatchRecorder/HTML/2020072606/0810400.html', encoding='utf-8') as f:
+        with open(r'./HTML/2020061901/0410300.html', encoding='utf-8') as f:
             soup_main = BeautifulSoup(f, 'html.parser')
             top_or_bottom_main = int(f.name[-10])
-            take_defense(soup_main, top_or_bottom_main)
+            print(take_match_team(soup_main, top_or_bottom_main))
 
     if n == '2':
         with open(r'D:/prog/MatchRecorder/HTML/2020061906/0110100.html', encoding='utf-8') as f:
