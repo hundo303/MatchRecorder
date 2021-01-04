@@ -14,9 +14,8 @@ import sqlite3
 #  hoge.dbに投球データと打席データを書き込む(それぞれテーブルが無ければ作成)
 #  (db_name = hoge.db,year='2020', start_date='01-01')みたいに渡してほしい
 def write_game_data(db_name, year, start_date):
-    files = glob.glob(r'./HTML/*/*')
-    #  files = glob.glob(os.getcwd() + r'\HTML\*\*')
-    #  files = [os.getcwd() + r'\HTML\2020061903\0210200.html']
+    #  files = glob.glob(r'./HTML/*/*')
+    files = [r'./HTML/2020061906/0310500.html', r'./HTML/2020061906/0320100.html']
     start_num = 0
     id_at_bat = 1
     month = start_date.split('-')[0]
@@ -78,6 +77,7 @@ def write_game_data(db_name, year, start_date):
     cnn.close()
     cnn = sqlite3.connect(db_name)
 
+    #  HTMLファイルを全部開くためのループ
     for file in files:
         print(file)
         write_steal = None
@@ -85,9 +85,11 @@ def write_game_data(db_name, year, start_date):
         intentional_walk = False
         inning = int(file[-12:-10])
 
-        if int(file[-23:-15]) < int(year + month + day):
+        #  start_dateより前ならcontinue
+        if int(file[-23:-14]) < int(year + month + day):
             continue
 
+        #  HTMLファイルを開いてる
         with open(file, encoding='utf-8') as f:
             top_or_bottom = int(f.name[-10])
             soup = BeautifulSoup(f, 'html.parser')
@@ -130,7 +132,7 @@ def write_game_data(db_name, year, start_date):
                 id_at_bat += 1
 
 
-#  write_game_dataで使用
+#  打席内の一球ごとの情報を書き込む
 def write_pitch_data(cnn, start_num, pitch_data_list, steal, steal_non_pitch, id_at_bat):
     #  start_numより後ろのみ書き込む
     save_data_list = pitch_data_list[start_num:]
@@ -153,7 +155,7 @@ def write_pitch_data(cnn, start_num, pitch_data_list, steal, steal_non_pitch, id
     cnn.commit()
 
 
-#  write_game_dataで使用
+#  打席の情報を書き込む
 def write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning):
     save_data = (id_at_bat, inning) + tuple(data_at_bat.values()) + (intentional_walk,)
     c = cnn.cursor()
@@ -161,7 +163,7 @@ def write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning):
     c.execute('INSERT INTO data_at_bat VALUES (?,?,?,?,?,?,?,?,?,?,?)', save_data)
 
 
-#  write_game_dataで使用
+#  HTMLから打席内の一球ごとの情報を読み取る
 def make_pitch_data_list(soup, top_or_bottom):
     pitch_data_list = []
 
@@ -223,7 +225,7 @@ def make_pitch_data_list(soup, top_or_bottom):
     return pitch_data_list
 
 
-#  write_game_dataで使用
+#  HTMLから打席の情報を読み取る
 def make_data_at_bat(soup, top_or_bottom):
     date_list = sp.take_date(soup)
     date = date_list[0]
@@ -307,6 +309,6 @@ def write_player_profile(db_name):
 
 
 if __name__ == '__main__':
-    db_name_main = 'baseball.db'
-    write_player_profile(db_name_main)
+    db_name_main = 'baseball_test.db'
+    #  write_player_profile(db_name_main)
     write_game_data(db_name_main, '2020', '06-19')
