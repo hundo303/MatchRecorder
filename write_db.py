@@ -15,7 +15,7 @@ import sqlite3
 #  (db_name = hoge.db,year='2020', start_date='01-01')みたいに渡してほしい
 def write_game_data(db_name, year, start_date):
     #  files = glob.glob(r'./HTML/*/*')
-    files = [r'./HTML/2020061906/0310500.html', r'./HTML/2020061906/0320100.html']
+    files = [r'./HTML/2020061906/0720500.html', r'./HTML/2020061906/0810000.html', r'./HTML/2020061906/0810100.html']
     start_num = 0
     id_at_bat = 1
     month = start_date.split('-')[0]
@@ -78,7 +78,7 @@ def write_game_data(db_name, year, start_date):
     cnn = sqlite3.connect(db_name)
 
     #  HTMLファイルを全部開くためのループ
-    for file in files:
+    for index, file in enumerate(files):
         print(file)
         write_steal = None
         steal_non_pitch = None
@@ -97,18 +97,21 @@ def write_game_data(db_name, year, start_date):
             if '申告敬遠' in sp.take_result_at_bat(soup)[0]:
                 intentional_walk = True
 
-            elif sp.judge_no_pitch(soup) or sp.judge_non_butter(soup):
+            #  ゲーム進行に関係のないページの場合はcontinue
+            elif sp.judge_no_pitch(soup) or sp.judge_non_butter(soup) or file[-8] == '0':
                 continue
 
             pitch_data_list = make_pitch_data_list(soup, top_or_bottom)
             data_at_bat = make_data_at_bat(soup, top_or_bottom)
 
+            #  一球も投げてなかったら打席データを書き込んでcontinue
             if not pitch_data_list:
                 write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
                 start_num = 0
                 id_at_bat += 1
                 continue
 
+            #  盗塁があればそれ用の変数をTrueに
             for steal in ('盗塁成功', '盗塁失敗'):
                 if steal in data_at_bat['result_small'] and not '盗塁成功率' in data_at_bat['result_small']:
                     write_steal = steal
@@ -116,8 +119,8 @@ def write_game_data(db_name, year, start_date):
                     if not steal in pitch_data_list[-1]['ball_result']:
                         steal_non_pitch = True
 
-            if any(four_result in pitch_data_list[-1]['ball_result'] for four_result in ('見逃し', '空振り', 'ボール', 'ファウル')):
-                if intentional_walk:
+            if any(four_result in pitch_data_list[-1]['ball_result'] for four_result in ('見逃し', '空振り', 'ボール', 'ファウル')) and not 'ファウルチップ' in pitch_data_list[-1]['ball_result']:
+                if files[index][-8] != files[index-1][-8]:
                     write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
                     start_num = 0
                     id_at_bat += 1
