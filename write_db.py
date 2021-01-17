@@ -14,8 +14,8 @@ import sqlite3
 #  hoge.dbに投球データと打席データを書き込む(それぞれテーブルが無ければ作成)
 #  (db_name = hoge.db,year='2020', start_date='01-01')みたいに渡してほしい
 def write_game_data(db_name, year, start_date):
-    #  files = glob.glob(r'./HTML/*/*')
-    files = [r'./HTML/2020061906/0720500.html', r'./HTML/2020061906/0810000.html', r'./HTML/2020061906/0810100.html']
+    files = glob.glob(r'./HTML/*/*')
+    #  files = [r'./HTML/2020061902/1010600.html', r'./HTML/2020061902/1010601.html', r'./HTML/2020061902/1010700.html']
     start_num = 0
     id_at_bat = 1
     month = start_date.split('-')[0]
@@ -119,6 +119,26 @@ def write_game_data(db_name, year, start_date):
                     if not steal in pitch_data_list[-1]['ball_result']:
                         steal_non_pitch = True
 
+            #  fileが最後だった時の処理
+            if file == files[-1]:
+                write_pitch_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
+                write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
+                start_num = 0
+                id_at_bat += 1
+                continue
+
+            #  打席が終了してるかの判定して書き込み
+            with open(files[index+1], encoding='utf-8') as f_next:
+                soup_next = BeautifulSoup(f_next, 'html.parser')
+            if files[index][-8] != files[index+1][-8] or sp.judge_no_pitch(soup_next) or sp.judge_non_butter(soup_next):
+                write_pitch_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
+                write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
+                start_num = 0
+                id_at_bat += 1
+            else:
+                write_pitch_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
+                start_num = len(pitch_data_list)
+            '''
             if any(four_result in pitch_data_list[-1]['ball_result'] for four_result in ('見逃し', '空振り', 'ボール', 'ファウル')) and not 'ファウルチップ' in pitch_data_list[-1]['ball_result']:
                 if files[index][-8] != files[index-1][-8]:
                     write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
@@ -133,6 +153,8 @@ def write_game_data(db_name, year, start_date):
                 write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
                 start_num = 0
                 id_at_bat += 1
+                
+            '''
 
 
 #  打席内の一球ごとの情報を書き込む
@@ -312,6 +334,6 @@ def write_player_profile(db_name):
 
 
 if __name__ == '__main__':
-    db_name_main = 'baseball_test.db'
+    db_name_main = 'baseball.db'
     #  write_player_profile(db_name_main)
     write_game_data(db_name_main, '2020', '06-19')
