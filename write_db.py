@@ -15,7 +15,7 @@ import sqlite3
 #  (db_name = hoge.db,year='2020', start_date='01-01')みたいに渡してほしい
 def write_game_data(db_name, year, start_date):
     files = glob.glob(r'./HTML/*/*')
-    #  files = [r'./HTML/2020061902/1010600.html', r'./HTML/2020061902/1010601.html', r'./HTML/2020061902/1010700.html']
+    #  files = [r'./HTML/2020061905/0811000.html', r'./HTML/2020061905/0811100.html', r'./HTML/2020061905/0811101.html', r'./HTML/2020061905/0811200.html']
     start_num = 0
     id_at_bat = 1
     month = start_date.split('-')[0]
@@ -98,7 +98,7 @@ def write_game_data(db_name, year, start_date):
                 intentional_walk = True
 
             #  ゲーム進行に関係のないページの場合はcontinue
-            elif sp.judge_no_pitch(soup) or sp.judge_non_butter(soup) or file[-8] == '0':
+            elif sp.judge_no_pitch(soup) or sp.judge_non_butter(soup) or int(file[-9:-7]) == 0:
                 continue
 
             pitch_data_list = make_pitch_data_list(soup, top_or_bottom)
@@ -337,3 +337,4 @@ if __name__ == '__main__':
     db_name_main = 'baseball.db'
     #  write_player_profile(db_name_main)
     write_game_data(db_name_main, '2020', '06-19')
+    print('test')
