@@ -13,13 +13,14 @@ import sqlite3
 
 #  hoge.dbに投球データと打席データを書き込む(それぞれテーブルが無ければ作成)
 #  (db_name = hoge.db,year='2020', start_date='01-01')みたいに渡してほしい
-def write_game_data(db_name, year, start_date):
+def write_game_data(db_name, year, start_date=None):
     files = glob.glob(r'./HTML/*/*')
-    #  files = [r'./HTML/2020061905/0811000.html', r'./HTML/2020061905/0811100.html', r'./HTML/2020061905/0811101.html', r'./HTML/2020061905/0811200.html']
+    #  files = [r'./HTML/2020080504/0611100.html', r'./HTML/2020080504/0620100.html', r'./HTML/2020080504/0620200.html']
     start_num = 0
     id_at_bat = 1
-    month = start_date.split('-')[0]
-    day = start_date.split('-')[1]
+    if start_date is not None:
+        month = start_date.split('-')[0]
+        day = start_date.split('-')[1]
 
     cnn = sqlite3.connect(db_name)
     c = cnn.cursor()
@@ -74,9 +75,6 @@ def write_game_data(db_name, year, start_date):
     if not last_id == (None,):
         id_at_bat = last_id[0] + 1
 
-    cnn.close()
-    cnn = sqlite3.connect(db_name)
-
     #  HTMLファイルを全部開くためのループ
     for index, file in enumerate(files):
         print(file)
@@ -85,8 +83,11 @@ def write_game_data(db_name, year, start_date):
         intentional_walk = False
         inning = int(file[-12:-10])
 
+        #  引数で開始日が指定されてなかった全て動かす
+        if start_date is None:
+            pass
         #  start_dateより前ならcontinue
-        if int(file[-23:-14]) < int(year + month + day):
+        elif int(file[-23:-14]) < int(year + month + day):
             continue
 
         #  HTMLファイルを開いてる
@@ -123,14 +124,14 @@ def write_game_data(db_name, year, start_date):
             if file == files[-1]:
                 write_pitch_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
                 write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
-                start_num = 0
-                id_at_bat += 1
+                cnn.close()
                 continue
 
             #  打席が終了してるかの判定して書き込み
             with open(files[index+1], encoding='utf-8') as f_next:
                 soup_next = BeautifulSoup(f_next, 'html.parser')
-            if files[index][-8] != files[index+1][-8] or sp.judge_no_pitch(soup_next) or sp.judge_non_butter(soup_next):
+
+            if files[index][-9:-7] != files[index+1][-8] or sp.judge_no_pitch(soup_next) or sp.judge_non_butter(soup_next):
                 write_pitch_data(cnn, start_num, pitch_data_list, write_steal, steal_non_pitch, id_at_bat)
                 write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning)
                 start_num = 0
@@ -186,6 +187,8 @@ def write_data_at_bat(cnn, data_at_bat, intentional_walk, id_at_bat, inning):
     c = cnn.cursor()
 
     c.execute('INSERT INTO data_at_bat VALUES (?,?,?,?,?,?,?,?,?,?,?)', save_data)
+
+    cnn.commit()
 
 
 #  HTMLから打席内の一球ごとの情報を読み取る
@@ -334,7 +337,6 @@ def write_player_profile(db_name):
 
 
 if __name__ == '__main__':
-    db_name_main = 'baseball.db'
+    db_name_main = 'baseball_test.db'
     #  write_player_profile(db_name_main)
     write_game_data(db_name_main, '2020', '06-19')
-    print('test')
