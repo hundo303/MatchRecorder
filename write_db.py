@@ -329,8 +329,21 @@ def write_player_profile(db_name):
             profile_tuple = sp.take_player_profile(soup)
             profile_tuple = (player_id, team) + profile_tuple
 
-            c.execute('INSERT INTO player VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                      profile_tuple)
+            c.execute('select id from player')
+            player_list = c.fetchall()
+
+            if (player_id,) in player_list:
+                print('update\n')
+                c.execute('update player set team = ?, name = ?, uniform_number = ?, position = ?, '
+                          'date_of_birth = ?, height = ?, weight = ?, throw_arm = ?, batting_arm = ?, '
+                          'draft_year = ?, draft_rank = ?, total_year = ?'
+                          'where id = ?',
+                          profile_tuple[1:]+(player_id,))
+
+            else:
+                print('insert\n')
+                c.execute('INSERT INTO player VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                          profile_tuple)
 
     cnn.commit()
     cnn.close()
@@ -338,5 +351,5 @@ def write_player_profile(db_name):
 
 if __name__ == '__main__':
     db_name_main = 'baseball_test.db'
-    #  write_player_profile(db_name_main)
-    write_game_data(db_name_main, '2020', '06-19')
+    write_player_profile(db_name_main)
+    # write_game_data(db_name_main, '2020', '06-19')
